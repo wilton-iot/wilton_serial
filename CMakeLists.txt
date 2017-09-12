@@ -32,6 +32,7 @@ set ( ${PROJECT_NAME}_DEPS
         staticlib_config
         staticlib_support
         staticlib_utils
+        staticlib_pimpl
         staticlib_json )
 staticlib_pkg_check_modules ( ${PROJECT_NAME}_DEPS_PC REQUIRED ${PROJECT_NAME}_DEPS )
 
@@ -40,17 +41,18 @@ set ( ${PROJECT_NAME}_PLATFORM_SRC )
 set ( ${PROJECT_NAME}_RESFILE )
 set ( ${PROJECT_NAME}_DEFFILE )
 if ( ${CMAKE_SYSTEM_NAME} STREQUAL "Windows" )
-    list ( APPEND ${PROJECT_NAME}_PLATFORM_SRC ${CMAKE_CURRENT_LIST_DIR}/src/wilton_serial_windows.cpp )
+    list ( APPEND ${PROJECT_NAME}_PLATFORM_SRC ${CMAKE_CURRENT_LIST_DIR}/src/connection_windows.cpp )
     configure_file ( ${CMAKE_CURRENT_LIST_DIR}/resources/${PROJECT_NAME}.rc
             ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.rc )
     set ( ${PROJECT_NAME}_RESFILE ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.rc )
     set ( ${PROJECT_NAME}_DEFFILE ${CMAKE_CURRENT_LIST_DIR}/resources/${PROJECT_NAME}.def )
-elseif ( )
-    list ( APPEND ${PROJECT_NAME}_PLATFORM_SRC ${CMAKE_CURRENT_LIST_DIR}/src/wilton_serial_posix.cpp )
+else ( )
+    list ( APPEND ${PROJECT_NAME}_PLATFORM_SRC ${CMAKE_CURRENT_LIST_DIR}/src/connection_termios.cpp )
 endif ( )
 
 add_library ( ${PROJECT_NAME} SHARED
         ${${PROJECT_NAME}_PLATFORM_SRC}
+        ${CMAKE_CURRENT_LIST_DIR}/src/wilton_serial.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/wiltoncall_serial.cpp
         ${CMAKE_CURRENT_LIST_DIR}/include/wilton/wilton_serial.h
         ${${PROJECT_NAME}_RESFILE}

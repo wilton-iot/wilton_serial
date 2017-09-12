@@ -12,6 +12,7 @@
 #include "staticlib/io.hpp"
 #include "staticlib/json.hpp"
 #include "staticlib/support.hpp"
+#include "staticlib/utils.hpp"
 
 #include "wilton/wilton.h"
 #include "wilton/wiltoncall.h"
@@ -36,30 +37,136 @@ support::handle_registry<wilton_Serial>& static_registry() {
 
 } // namespace
 
-
 support::buffer serial_open(sl::io::span<const char> data) {
-    (void) data;
-    return support::make_empty_buffer();
+    wilton_Serial* ser;
+    char* err = wilton_Serial_open(std::addressof(ser), data.data(), static_cast<int>(data.size()));
+    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
+    int64_t handle = static_registry().put(ser);
+    return support::make_json_buffer({
+        { "serialHandle", handle}
+    });
 }
 
 support::buffer serial_close(sl::io::span<const char> data) {
-    (void) data;
+    // json parse
+    auto json = sl::json::load(data);
+    int64_t handle = -1;
+    for (const sl::json::field& fi : json.as_object()) {
+        auto& name = fi.name();
+        if ("serialHandle" == name) {
+            handle = fi.as_int64_or_throw(name);
+        } else {
+            throw support::exception(TRACEMSG("Unknown data field: [" + name + "]"));
+        }
+    }
+    if (-1 == handle) throw support::exception(TRACEMSG(
+            "Required parameter 'serialHandle' not specified"));
+    // get handle
+    wilton_Serial* ser = static_registry().remove(handle);
+    if (nullptr == ser) throw support::exception(TRACEMSG(
+            "Invalid 'serialHandle' parameter specified"));
+    // call wilton
+    char* err = wilton_Serial_close(ser);
+    if (nullptr != err) {
+        static_registry().put(ser);
+        support::throw_wilton_error(err, TRACEMSG(err));
+    }
     return support::make_empty_buffer();
 }
 
 support::buffer serial_read(sl::io::span<const char> data) {
-    (void) data;
-    return support::make_empty_buffer();
+    // json parse
+    auto json = sl::json::load(data);
+    int64_t handle = -1;
+    int64_t len = -1;
+    for (const sl::json::field& fi : json.as_object()) {
+        auto& name = fi.name();
+        if ("serialHandle" == name) {
+            handle = fi.as_int64_or_throw(name);
+        } else if ("length" == name) {
+            len = fi.as_int64_or_throw(name);
+        } else {
+            throw support::exception(TRACEMSG("Unknown data field: [" + name + "]"));
+        }
+    }
+    if (-1 == handle) throw support::exception(TRACEMSG(
+            "Required parameter 'serialHandle' not specified"));
+    if (-1 == len) throw support::exception(TRACEMSG(
+            "Required parameter 'length' not specified"));
+    // get handle
+    wilton_Serial* ser = static_registry().remove(handle);
+    if (nullptr == ser) throw support::exception(TRACEMSG(
+            "Invalid 'serialHandle' parameter specified"));
+    // call wilton
+    char* out = nullptr;
+    int out_len = 0;
+    char* err = wilton_Serial_read(ser, static_cast<int>(len),
+            std::addressof(out), std::addressof(out_len));
+    static_registry().put(ser);
+    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
+    return support::wrap_wilton_buffer(out, out_len);
 }
 
 support::buffer serial_readline(sl::io::span<const char> data) {
-    (void) data;
-    return support::make_empty_buffer();
+    // json parse
+    auto json = sl::json::load(data);
+    int64_t handle = -1;
+    for (const sl::json::field& fi : json.as_object()) {
+        auto& name = fi.name();
+        if ("serialHandle" == name) {
+            handle = fi.as_int64_or_throw(name);
+        } else {
+            throw support::exception(TRACEMSG("Unknown data field: [" + name + "]"));
+        }
+    }
+    if (-1 == handle) throw support::exception(TRACEMSG(
+            "Required parameter 'serialHandle' not specified"));
+    // get handle
+    wilton_Serial* ser = static_registry().remove(handle);
+    if (nullptr == ser) throw support::exception(TRACEMSG(
+            "Invalid 'serialHandle' parameter specified"));
+    // call wilton
+    char* out = nullptr;
+    int out_len = 0;
+    char* err = wilton_Serial_readline(ser, std::addressof(out), std::addressof(out_len));
+    static_registry().put(ser);
+    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
+    return support::wrap_wilton_buffer(out, out_len);
 }
 
 support::buffer serial_write(sl::io::span<const char> data) {
-    (void) data;
-    return support::make_empty_buffer();
+    // json parse
+    auto json = sl::json::load(data);
+    int64_t handle = -1;
+    auto rdata = std::ref(sl::utils::empty_string());
+    for (const sl::json::field& fi : json.as_object()) {
+        auto& name = fi.name();
+        if ("serialHandle" == name) {
+            handle = fi.as_int64_or_throw(name);
+        } else if ("data" == name) {
+            rdata = fi.as_string_nonempty_or_throw(name);
+        } else {
+            throw support::exception(TRACEMSG("Unknown data field: [" + name + "]"));
+        }
+    }
+    if (-1 == handle) throw support::exception(TRACEMSG(
+            "Required parameter 'serialHandle' not specified"));
+    if (rdata.get().empty()) throw support::exception(TRACEMSG(
+            "Required parameter 'data' not specified"));
+    const std::string& sdata = rdata.get();
+    // get handle
+    wilton_Serial* ser = static_registry().remove(handle);
+    if (nullptr == ser) throw support::exception(TRACEMSG(
+            "Invalid 'serialHandle' parameter specified"));
+    // call wilton
+    int written_out = 0;
+    char* err = wilton_Serial_write(ser, sdata.c_str(), 
+            static_cast<int> (sdata.length()), std::addressof(written_out));
+    static_registry().put(ser);
+    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
+    return support::make_json_buffer({
+        { "bytesWritten", written_out }
+    });
 }
 
 } // namespace

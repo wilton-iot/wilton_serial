@@ -16,13 +16,15 @@ define(["wilton/dyload", "wilton/serial/Serial"], function(dyload, Serial) {
                 writeTimeoutMillis: 1000
             });
 
-            ser.write("$RECALL\r\n");
-            ser.write("$START\r\n");
+            var written_recall = ser.write("$RECALL\r\n");
+            print(written_recall);
+            var written_start = ser.write("$START\r\n");
+            print(written_start);
 
-            var resp = "";
-            do {
-                resp = ser.readLine();
-            } while(resp.length > 0);
+//            var resp = "";
+//            do {
+//                resp = ser.readLine();
+//            } while(resp.length > 0);
             
             ser.close();
         }
