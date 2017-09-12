@@ -21,6 +21,7 @@ namespace wilton {
 namespace serial {
 
 class serial_config {
+public:
     std::string port;
     uint32_t baud_rate = 9600;
     parity_type parity = parity_type::none;
@@ -29,7 +30,6 @@ class serial_config {
     uint32_t read_timeout_millis = 500;
     uint32_t write_timeout_millis = 500;
 
-public:
     serial_config(const serial_config&) = delete;
 
     serial_config& operator=(const serial_config&) = delete;

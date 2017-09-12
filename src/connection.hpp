@@ -19,13 +19,6 @@
 namespace wilton {
 namespace serial {
 
-/*
-    int fd = -1;
-    int pipe_read_w = -1;
-    int pipe_read_r = -1;
-    int pipe_write_w = -1;
-    int pipe_write_r = -1;
- */
 class connection : public sl::pimpl::object {
 protected:
     /**
