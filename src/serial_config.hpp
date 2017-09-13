@@ -25,7 +25,7 @@ public:
     std::string port;
     uint32_t baud_rate = 9600;
     parity_type parity = parity_type::none;
-    uint16_t bytesize = 8;
+    uint16_t byte_size = 8;
     uint16_t stop_bits_count = 1;
     uint32_t read_timeout_millis = 500;
     uint32_t write_timeout_millis = 500;
@@ -38,7 +38,7 @@ public:
     port(std::move(other.port)),
     baud_rate(other.baud_rate),
     parity(other.parity),
-    bytesize(other.bytesize),
+    byte_size(other.byte_size),
     stop_bits_count(other.stop_bits_count),
     read_timeout_millis(other.read_timeout_millis),
     write_timeout_millis(other.write_timeout_millis) { }
@@ -47,7 +47,7 @@ public:
         port = std::move(other.port);
         baud_rate = other.baud_rate;
         parity = other.parity;
-        bytesize = other.bytesize;
+        byte_size = other.byte_size;
         stop_bits_count = other.stop_bits_count;
         read_timeout_millis = other.read_timeout_millis;
         write_timeout_millis = other.write_timeout_millis;
@@ -66,7 +66,7 @@ public:
             } else if ("parity" == name) {
                 this->parity = make_parity_type(fi.as_string_nonempty_or_throw(name));
             } else if ("byteSize" == name) {
-                this->bytesize = fi.as_uint16_or_throw(name);
+                this->byte_size = fi.as_uint16_or_throw(name);
             } else if ("stopBitsCount" == name) {
                 this->stop_bits_count = fi.as_uint16_or_throw(name);
             } else if ("readTimeoutMillis" == name) {
@@ -86,7 +86,7 @@ public:
             { "port", port },
             { "baudRate", baud_rate },
             { "parity", stringify_parity_type(parity) },
-            { "byteSize", bytesize },
+            { "byteSize", byte_size },
             { "stopBitsCount", stop_bits_count },
             { "readTimeoutMillis", read_timeout_millis },
             { "writeTimeoutMillis", write_timeout_millis }

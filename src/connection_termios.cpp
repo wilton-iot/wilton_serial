@@ -44,10 +44,10 @@ public:
         std::memset(std::addressof(tty), '\0', sizeof(tty));
         load_tty_params(tty);
         set_tty_mode(tty);
-        set_baud_rate(tty);
-        set_byte_size(tty);
-        set_stop_bits(tty);
-        set_parity(tty);
+        set_baud_rate(conf, tty);
+        set_byte_size(conf, tty);
+        set_stop_bits(conf, tty);
+        set_parity(conf, tty);
         set_flow_control(tty);
         apply_tty_params(tty);
         flush_input_buffer();
@@ -115,7 +115,6 @@ public:
             if (cur >= finish) {
                 break;
             }
-            
         }
         return static_cast<uint32_t>(written);
     }
@@ -219,36 +218,91 @@ private:
         tty.c_iflag &= ~PARMRK;
     }
 
-    // TODO: select
-    void set_baud_rate(struct termios& tty) {
-        auto err_o = ::cfsetospeed(std::addressof(tty), B4800);
+    void set_baud_rate(const serial_config& conf, struct termios& tty) {
+        speed_t rate = B0;
+        switch (conf.baud_rate) {
+        case 0: rate = B0; break;
+        case 50: rate = B50; break;
+        case 75: rate = B75; break;
+        case 110: rate = B110; break;
+        case 134: rate = B134; break;
+        case 150: rate = B150; break;
+        case 200: rate = B200; break;
+        case 300: rate = B300; break;
+        case 600: rate = B600; break;
+        case 1200: rate = B1200; break;
+        case 1800: rate = B1800; break;
+        case 2400: rate = B2400; break;
+        case 4800: rate = B4800; break;
+        case 9600: rate = B9600; break;
+        case 19200: rate = B19200; break;
+        case 38400: rate = B38400; break;
+        default: throw support::exception(TRACEMSG(
+                "Invalid 'baudRate' specified: [" + sl::support::to_string(conf.baud_rate) + "]"));
+        }
+        auto err_o = ::cfsetospeed(std::addressof(tty), rate);
         if (0 != err_o) {
             throw support::exception(TRACEMSG(
-                "Serial 'cfsetospeed' error, baudrate: [" + "TODO" + "]," +
+                "Serial 'cfsetospeed' error, baudrate: [" + sl::support::to_string(conf.baud_rate) + "]," +
                 " error: [" + ::strerror(errno) + "]"));
         }
-        auto err_i = ::cfsetispeed(std::addressof(tty), B4800);
+        auto err_i = ::cfsetispeed(std::addressof(tty), rate);
         if (0 != err_i) {
             throw support::exception(TRACEMSG(
-                "Serial 'cfsetispeed' error, baudrate: [" + "TODO" + "]," +
+                "Serial 'cfsetispeed' error, baudrate: [" + sl::support::to_string(conf.baud_rate) + "]," +
                 " error: [" + ::strerror(errno) + "]"));
         }
     }
 
-    // TODO: select
-    void set_byte_size(struct termios& tty) {
-        tty.c_cflag |= CS8;
+    void set_byte_size(const serial_config& conf, struct termios& tty) {
+        switch(conf.byte_size) {
+        case 5: tty.c_cflag |= CS5; break;
+        case 6: tty.c_cflag |= CS6; break;
+        case 7: tty.c_cflag |= CS7; break;
+        case 8: tty.c_cflag |= CS8; break;
+        default: throw support::exception(TRACEMSG(
+                "Invalid 'byteSize' specified: [" + sl::support::to_string(conf.byte_size) + "]"));
+        }
     }
 
-    // TODO: select
-    void set_stop_bits(struct termios& tty) {
-        tty.c_cflag &= ~(CSTOPB);
+    void set_stop_bits(const serial_config& conf, struct termios& tty) {
+        switch(conf.stop_bits_count) {
+        case 1: tty.c_cflag &= ~(CSTOPB); break;
+        case 2: tty.c_cflag |= (CSTOPB); break;
+        default: throw support::exception(TRACEMSG(
+                "Invalid 'stopBitsCount' specified: [" + sl::support::to_string(conf.byte_size) + "]"));
+        }
     }
 
-    // TODO: select
-    void set_parity(struct termios& tty) {
+    void set_parity(const serial_config& conf, struct termios& tty) {
         tty.c_iflag &= ~(INPCK | ISTRIP);
-        tty.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+        switch(conf.parity) {
+        case parity_type::none: {
+            tty.c_cflag &= ~(PARENB | PARODD | CMSPAR);
+            break;
+        }
+        case parity_type::even: {
+            tty.c_cflag &= ~(PARODD | CMSPAR);
+            tty.c_cflag |= (PARENB);
+            break;
+        }
+        case parity_type::odd: {
+            tty.c_cflag &= ~CMSPAR;
+            tty.c_cflag |= (PARENB | PARODD);
+            break;
+        }
+        case parity_type::mark: {
+            tty.c_cflag |= (PARENB | CMSPAR | PARODD);
+            break;
+        }
+        case parity_type::space: {
+            tty.c_cflag |= (PARENB | CMSPAR);
+            tty.c_cflag &= ~(PARODD);
+            break;
+        }
+        default: throw support::exception(TRACEMSG(
+                "Invalid 'parity' specified: [" + stringify_parity_type(conf.parity) + "]"));
+        }
     }
 
     void set_flow_control(struct termios& tty) {
