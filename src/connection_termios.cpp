@@ -85,12 +85,37 @@ public:
         return res;
     }
 
-    // TODO
     uint32_t write(connection&, sl::io::span<const char> data) {
-        auto written = ::write(fd, data.data(), data.size());
-        if (!sl::support::is_uint32(written)) {
-            throw support::exception(TRACEMSG(
-                "Serial 'write' error: [" + ::strerror(errno) + "]"));
+        uint64_t start = current_time_millis();
+        uint64_t finish = start + write_timeout_millis;
+        uint64_t cur = start;
+        size_t written = 0;
+        for(;;) {
+            struct pollfd pfd;
+            std::memset(std::addressof(pfd), '\0', sizeof(pfd));
+            pfd.fd = this->fd;
+            pfd.events = POLLOUT;
+            uint32_t passed = static_cast<uint32_t> (cur - start);
+            int ptm = static_cast<int> (write_timeout_millis - passed);
+            auto err = ::poll(std::addressof(pfd), 1, ptm);
+            check_poll_err(pfd, err, "", ptm);
+            if (pfd.revents & POLLOUT) {
+                auto wr = ::write(this->fd, data.data() + written, data.size() - written);
+                if (-1 == wr) {
+                    throw support::exception(TRACEMSG(
+                            "Serial 'write' error, written: [" + sl::support::to_string(written) + "],"
+                            " error: [" + ::strerror(errno) + "]"));
+                }
+                written += wr;
+                if (written >= data.size()) {
+                    break;
+                }
+            }
+            cur = current_time_millis();
+            if (cur >= finish) {
+                break;
+            }
+            
         }
         return static_cast<uint32_t>(written);
     }
@@ -108,6 +133,31 @@ private:
         return millis.count();
     }
 
+    static void check_poll_err(struct pollfd& pfd, int err, const std::string& res, int timeout) {
+        if (err < 0) {
+            throw support::exception(TRACEMSG(
+                    "Serial 'poll' error, timeout: [" + sl::support::to_string(timeout) + "],"
+                    " current res: [" + res + "]" +
+                    " error: [" + ::strerror(errno) + "]"));
+        }
+        if (pfd.revents & POLLERR) {
+            throw support::exception(TRACEMSG(
+                    "Serial 'poll' error, timeout: [" + sl::support::to_string(timeout) + "],"
+                    " current res: [" + res + "]" +
+                    " error: [POLLERR]"));
+        } else if (pfd.revents & POLLHUP) {
+            throw support::exception(TRACEMSG(
+                    "Serial 'poll' error, timeout: [" + sl::support::to_string(timeout) + "],"
+                    " current res: [" + res + "]" +
+                    " error: [POLLHUP]"));
+        } else if (pfd.revents & POLLNVAL) {
+            throw support::exception(TRACEMSG(
+                    "Serial 'poll' error, timeout: [" + sl::support::to_string(timeout) + "],"
+                    " current res: [" + res + "]" +
+                    " error: [POLLNVAL]"));
+        }
+    }
+
     std::string read_some(uint64_t start, uint32_t length, uint32_t timeout_millis) {
         uint64_t finish = start + timeout_millis;
         uint64_t cur = start;
@@ -120,11 +170,7 @@ private:
             uint32_t passed = static_cast<uint32_t> (cur - start);
             int ptm = static_cast<int> (timeout_millis - passed);
             auto err = ::poll(std::addressof(pfd), 1, ptm);
-            if (err < 0) {
-                throw support::exception(TRACEMSG(
-                    "Serial 'poll' error, timeout: [" + sl::support::to_string(ptm) + "],"
-                    " error: [" + ::strerror(errno) + "]"));
-            }
+            check_poll_err(pfd, err, res, ptm);
             if (pfd.revents & POLLIN) {
                 auto prev_len = res.length();
                 res.resize(length);
@@ -139,18 +185,6 @@ private:
                 if (res.length() >= length) {
                     break;
                 }
-            } else if (pfd.revents & POLLERR) {
-                throw support::exception(TRACEMSG(
-                    "Serial 'poll' error, timeout: [" + sl::support::to_string(ptm) + "],"
-                    " error: [POLLERR]"));
-            } else if (pfd.revents & POLLHUP) {
-                throw support::exception(TRACEMSG(
-                    "Serial 'poll' error, timeout: [" + sl::support::to_string(ptm) + "],"
-                    " error: [POLLHUP]"));
-            } else if (pfd.revents & POLLNVAL) {
-                throw support::exception(TRACEMSG(
-                    "Serial 'poll' error, timeout: [" + sl::support::to_string(ptm) + "],"
-                    " error: [POLLNVAL]"));
             }
             
             cur = current_time_millis();
