@@ -1,5 +1,5 @@
 
-define(["wilton/dyload", "wilton/thread", "wilton/serial/Serial"], function(dyload, thread, Serial) {
+define(["wilton/dyload", "wilton/serial/Serial"], function(dyload, Serial) {
     return {
         main: function() {
             dyload({
@@ -20,7 +20,7 @@ define(["wilton/dyload", "wilton/thread", "wilton/serial/Serial"], function(dylo
             print(written_recall);
             var written_start = ser.write("$START\r\n");
             print(written_start);
-
+            
             for (var i = 0; i < 16; i++) {
                 print(i + ": [" +ser.readLine() + "]");
             }
