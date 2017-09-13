@@ -21,13 +21,9 @@ define(["wilton/dyload", "wilton/thread", "wilton/serial/Serial"], function(dylo
             var written_start = ser.write("$START\r\n");
             print(written_start);
 
-            var resp = "";
-            do {
-                resp = ser.readLine();
-                print(resp);
-            } while(resp.length > 0);
-            
-            thread.sleepMillis(5000);
+            for (var i = 0; i < 16; i++) {
+                print(i + ": [" +ser.readLine() + "]");
+            }
             
             ser.close();
         }
