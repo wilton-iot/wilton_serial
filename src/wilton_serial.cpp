@@ -7,7 +7,6 @@
 
 #include "wilton/wilton_serial.h"
 
-
 #include <string>
 
 #include "staticlib/config.hpp"
@@ -42,7 +41,7 @@ char* wilton_Serial_open(
     try {
         auto conf_json = sl::json::load({conf, conf_len});
         auto sconf = wilton::serial::serial_config(conf_json);
-        auto ser = wilton::serial::connection(sconf);
+        auto ser = wilton::serial::connection(std::move(sconf));
         wilton_Serial* ser_ptr = new wilton_Serial(std::move(ser));
         *ser_out = ser_ptr;
         return nullptr;

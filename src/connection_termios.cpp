@@ -5,16 +5,17 @@
  * Created on September 12, 2017, 2:10 PM
  */
 
+#include "connection.hpp"
+
 #include <array>
 #include <chrono>
-
-#include "connection.hpp"
 
 #include <fcntl.h>
 #include <poll.h>
 #include <termios.h>
 #include <unistd.h>
 
+#include "staticlib/crypto.hpp"
 #include "staticlib/support.hpp"
 #include "staticlib/pimpl/forward_macros.hpp"
 
@@ -22,20 +23,18 @@ namespace wilton {
 namespace serial {
 
 class connection::impl : public staticlib::pimpl::object::impl {
-    uint32_t read_timeout_millis;
-    uint32_t write_timeout_millis;
+    serial_config conf;
 
     int fd = -1;
     
 public:
-    impl(const serial_config& conf) :
-    read_timeout_millis(conf.read_timeout_millis), 
-    write_timeout_millis(conf.write_timeout_millis) {
+    impl(serial_config&& conf) :
+    conf(std::move(conf)) {
         // open port
-        this->fd = ::open(conf.port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
+        this->fd = ::open(this->conf.port.c_str(), O_RDWR | O_NOCTTY | O_SYNC);
         if (this->fd < 0) {
             throw support::exception(TRACEMSG(
-                "Serial 'open' error, port: [" + conf.port + "],"
+                "Serial 'open' error, port: [" + this->conf.port + "],"
                 " error: [" + ::strerror(errno) + "]"));
         }
 
@@ -44,10 +43,10 @@ public:
         std::memset(std::addressof(tty), '\0', sizeof(tty));
         load_tty_params(tty);
         set_tty_mode(tty);
-        set_baud_rate(conf, tty);
-        set_byte_size(conf, tty);
-        set_stop_bits(conf, tty);
-        set_parity(conf, tty);
+        set_baud_rate(tty);
+        set_byte_size(tty);
+        set_stop_bits(tty);
+        set_parity(tty);
         set_flow_control(tty);
         apply_tty_params(tty);
         flush_input_buffer();
@@ -59,17 +58,18 @@ public:
     
     std::string read(connection&, uint32_t length) {
         uint64_t start = current_time_millis();
-        return read_some(start, length, read_timeout_millis);
+        auto res = read_some(start, length, conf.timeout_millis);
+        return sl::crypto::to_hex(res);
     }
 
     std::string read_line(connection&) {
         uint64_t start = current_time_millis();
-        uint64_t finish = start + read_timeout_millis;
+        uint64_t finish = start + conf.timeout_millis;
         uint64_t cur = start;
         std::string res;
         for(;;) {
             uint32_t passed = static_cast<uint32_t> (cur - start);
-            auto ch = this->read_some(cur, 1, read_timeout_millis - passed);
+            auto ch = this->read_some(cur, 1, conf.timeout_millis - passed);
             if (ch.empty() || '\n' == ch.at(0)) {
                 break;
             }
@@ -82,12 +82,12 @@ public:
         if (res.length() > 0 && '\r' == res.back()) {
             res.pop_back();
         }
-        return res;
+        return sl::crypto::to_hex(res);
     }
 
     uint32_t write(connection&, sl::io::span<const char> data) {
         uint64_t start = current_time_millis();
-        uint64_t finish = start + write_timeout_millis;
+        uint64_t finish = start + conf.timeout_millis;
         uint64_t cur = start;
         size_t written = 0;
         for(;;) {
@@ -96,7 +96,7 @@ public:
             pfd.fd = this->fd;
             pfd.events = POLLOUT;
             uint32_t passed = static_cast<uint32_t> (cur - start);
-            int ptm = static_cast<int> (write_timeout_millis - passed);
+            int ptm = static_cast<int> (conf.timeout_millis - passed);
             auto err = ::poll(std::addressof(pfd), 1, ptm);
             check_poll_err(pfd, err, "", ptm);
             if (pfd.revents & POLLOUT) {
@@ -218,7 +218,7 @@ private:
         tty.c_iflag &= ~PARMRK;
     }
 
-    void set_baud_rate(const serial_config& conf, struct termios& tty) {
+    void set_baud_rate(struct termios& tty) {
         speed_t rate = B0;
         switch (conf.baud_rate) {
         case 0: rate = B0; break;
@@ -254,7 +254,7 @@ private:
         }
     }
 
-    void set_byte_size(const serial_config& conf, struct termios& tty) {
+    void set_byte_size(struct termios& tty) {
         switch(conf.byte_size) {
         case 5: tty.c_cflag |= CS5; break;
         case 6: tty.c_cflag |= CS6; break;
@@ -265,7 +265,7 @@ private:
         }
     }
 
-    void set_stop_bits(const serial_config& conf, struct termios& tty) {
+    void set_stop_bits(struct termios& tty) {
         switch(conf.stop_bits_count) {
         case 1: tty.c_cflag &= ~(CSTOPB); break;
         case 2: tty.c_cflag |= (CSTOPB); break;
@@ -274,7 +274,7 @@ private:
         }
     }
 
-    void set_parity(const serial_config& conf, struct termios& tty) {
+    void set_parity(struct termios& tty) {
         tty.c_iflag &= ~(INPCK | ISTRIP);
         switch(conf.parity) {
         case parity_type::none: {
@@ -332,7 +332,7 @@ private:
     }
 
 };
-PIMPL_FORWARD_CONSTRUCTOR(connection, (const serial_config&), (), support::exception)
+PIMPL_FORWARD_CONSTRUCTOR(connection, (serial_config&&), (), support::exception)
 PIMPL_FORWARD_METHOD(connection, std::string, read, (uint32_t), (), support::exception)
 PIMPL_FORWARD_METHOD(connection, std::string, read_line, (), (), support::exception)
 PIMPL_FORWARD_METHOD(connection, uint32_t, write, (sl::io::span<const char>), (), support::exception)

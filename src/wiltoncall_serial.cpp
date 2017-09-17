@@ -9,6 +9,7 @@
 #include <string>
 
 #include "staticlib/config.hpp"
+#include "staticlib/crypto.hpp"
 #include "staticlib/io.hpp"
 #include "staticlib/json.hpp"
 #include "staticlib/support.hpp"
@@ -138,22 +139,22 @@ support::buffer serial_write(sl::io::span<const char> data) {
     // json parse
     auto json = sl::json::load(data);
     int64_t handle = -1;
-    auto rdata = std::ref(sl::utils::empty_string());
+    auto rdatahex = std::ref(sl::utils::empty_string());
     for (const sl::json::field& fi : json.as_object()) {
         auto& name = fi.name();
         if ("serialHandle" == name) {
             handle = fi.as_int64_or_throw(name);
-        } else if ("data" == name) {
-            rdata = fi.as_string_nonempty_or_throw(name);
+        } else if ("dataHex" == name) {
+            rdatahex = fi.as_string_nonempty_or_throw(name);
         } else {
             throw support::exception(TRACEMSG("Unknown data field: [" + name + "]"));
         }
     }
     if (-1 == handle) throw support::exception(TRACEMSG(
             "Required parameter 'serialHandle' not specified"));
-    if (rdata.get().empty()) throw support::exception(TRACEMSG(
-            "Required parameter 'data' not specified"));
-    const std::string& sdata = rdata.get();
+    if (rdatahex.get().empty()) throw support::exception(TRACEMSG(
+            "Required parameter 'dataHex' not specified"));
+    std::string sdata = sl::crypto::from_hex(rdatahex.get());
     // get handle
     wilton_Serial* ser = static_registry().remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(

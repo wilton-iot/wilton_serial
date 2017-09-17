@@ -30,6 +30,7 @@ endif ( )
 
 set ( ${PROJECT_NAME}_DEPS
         staticlib_config
+        staticlib_crypto
         staticlib_support
         staticlib_utils
         staticlib_pimpl

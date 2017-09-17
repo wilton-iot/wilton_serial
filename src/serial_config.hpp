@@ -15,6 +15,8 @@
 #include "staticlib/support.hpp"
 #include "staticlib/json.hpp"
 
+#include "wilton/support/exception.hpp"
+
 #include "parity_type.hpp"
 
 namespace wilton {
@@ -27,8 +29,7 @@ public:
     parity_type parity = parity_type::none;
     uint16_t byte_size = 8;
     uint16_t stop_bits_count = 1;
-    uint32_t read_timeout_millis = 500;
-    uint32_t write_timeout_millis = 500;
+    uint32_t timeout_millis = 500;
 
     serial_config(const serial_config&) = delete;
 
@@ -40,8 +41,7 @@ public:
     parity(other.parity),
     byte_size(other.byte_size),
     stop_bits_count(other.stop_bits_count),
-    read_timeout_millis(other.read_timeout_millis),
-    write_timeout_millis(other.write_timeout_millis) { }
+    timeout_millis(other.timeout_millis) { }
 
     serial_config& operator=(serial_config&& other) {
         port = std::move(other.port);
@@ -49,8 +49,7 @@ public:
         parity = other.parity;
         byte_size = other.byte_size;
         stop_bits_count = other.stop_bits_count;
-        read_timeout_millis = other.read_timeout_millis;
-        write_timeout_millis = other.write_timeout_millis;
+        timeout_millis = other.timeout_millis;
         return *this;
     }
 
@@ -62,17 +61,15 @@ public:
             if ("port" == name) {
                 this->port = fi.as_string_nonempty_or_throw(name);
             } else if ("baudRate" == name) {
-                this->baud_rate = fi.as_uint32_or_throw(name);
+                this->baud_rate = fi.as_uint32_positive_or_throw(name);
             } else if ("parity" == name) {
                 this->parity = make_parity_type(fi.as_string_nonempty_or_throw(name));
             } else if ("byteSize" == name) {
-                this->byte_size = fi.as_uint16_or_throw(name);
+                this->byte_size = fi.as_uint16_positive_or_throw(name);
             } else if ("stopBitsCount" == name) {
-                this->stop_bits_count = fi.as_uint16_or_throw(name);
-            } else if ("readTimeoutMillis" == name) {
-                this->read_timeout_millis = fi.as_uint32_or_throw(name);
-            } else if ("writeTimeoutMillis" == name) {
-                this->write_timeout_millis = fi.as_uint32_or_throw(name);
+                this->stop_bits_count = fi.as_uint16_positive_or_throw(name);
+            } else if ("timeoutMillis" == name) {
+                this->timeout_millis = fi.as_uint32_positive_or_throw(name);
             } else {
                 throw support::exception(TRACEMSG("Unknown 'serial_config' field: [" + name + "]"));
             }
@@ -88,8 +85,7 @@ public:
             { "parity", stringify_parity_type(parity) },
             { "byteSize", byte_size },
             { "stopBitsCount", stop_bits_count },
-            { "readTimeoutMillis", read_timeout_millis },
-            { "writeTimeoutMillis", write_timeout_millis }
+            { "timeoutMillis", timeout_millis },
         };
     }
 };

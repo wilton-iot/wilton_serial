@@ -1,10 +1,10 @@
 
 EXPORTS
-    wilton_SerialConnection_open
-    wilton_SerialConnection_close
-    wilton_SerialConnection_read
-    wilton_SerialConnection_readline
-    wilton_SerialConnection_write
+    wilton_Serial_open
+    wilton_Serial_close
+    wilton_Serial_read
+    wilton_Serial_readline
+    wilton_Serial_write
     
     wilton_module_init
     

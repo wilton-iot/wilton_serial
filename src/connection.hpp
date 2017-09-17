@@ -34,7 +34,7 @@ public:
      */
     PIMPL_CONSTRUCTOR(connection)
 
-    connection(const serial_config& conf);
+    connection(serial_config&& conf);
 
     std::string read(uint32_t length);
 
