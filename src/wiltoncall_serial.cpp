@@ -38,7 +38,7 @@ support::handle_registry<wilton_Serial>& static_registry() {
 
 } // namespace
 
-support::buffer serial_open(sl::io::span<const char> data) {
+support::buffer open(sl::io::span<const char> data) {
     wilton_Serial* ser;
     char* err = wilton_Serial_open(std::addressof(ser), data.data(), static_cast<int>(data.size()));
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
@@ -48,7 +48,7 @@ support::buffer serial_open(sl::io::span<const char> data) {
     });
 }
 
-support::buffer serial_close(sl::io::span<const char> data) {
+support::buffer close(sl::io::span<const char> data) {
     // json parse
     auto json = sl::json::load(data);
     int64_t handle = -1;
@@ -75,7 +75,7 @@ support::buffer serial_close(sl::io::span<const char> data) {
     return support::make_empty_buffer();
 }
 
-support::buffer serial_read(sl::io::span<const char> data) {
+support::buffer read(sl::io::span<const char> data) {
     // json parse
     auto json = sl::json::load(data);
     int64_t handle = -1;
@@ -108,7 +108,7 @@ support::buffer serial_read(sl::io::span<const char> data) {
     return support::wrap_wilton_buffer(out, out_len);
 }
 
-support::buffer serial_readline(sl::io::span<const char> data) {
+support::buffer readline(sl::io::span<const char> data) {
     // json parse
     auto json = sl::json::load(data);
     int64_t handle = -1;
@@ -135,7 +135,7 @@ support::buffer serial_readline(sl::io::span<const char> data) {
     return support::wrap_wilton_buffer(out, out_len);
 }
 
-support::buffer serial_write(sl::io::span<const char> data) {
+support::buffer write(sl::io::span<const char> data) {
     // json parse
     auto json = sl::json::load(data);
     int64_t handle = -1;
@@ -175,11 +175,11 @@ support::buffer serial_write(sl::io::span<const char> data) {
 
 extern "C" char* wilton_module_init() {
     try {
-        wilton::support::register_wiltoncall("serial_open", wilton::serial::serial_open);
-        wilton::support::register_wiltoncall("serial_close", wilton::serial::serial_close);
-        wilton::support::register_wiltoncall("serial_read", wilton::serial::serial_read);
-        wilton::support::register_wiltoncall("serial_readline", wilton::serial::serial_readline);
-        wilton::support::register_wiltoncall("serial_write", wilton::serial::serial_write);
+        wilton::support::register_wiltoncall("serial_open", wilton::serial::open);
+        wilton::support::register_wiltoncall("serial_close", wilton::serial::close);
+        wilton::support::register_wiltoncall("serial_read", wilton::serial::read);
+        wilton::support::register_wiltoncall("serial_readline", wilton::serial::readline);
+        wilton::support::register_wiltoncall("serial_write", wilton::serial::write);
         return nullptr;
     } catch (const std::exception& e) {
         return wilton::support::alloc_copy(TRACEMSG(e.what() + "\nException raised"));
