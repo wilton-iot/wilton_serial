@@ -39,7 +39,7 @@ support::handle_registry<wilton_Serial>& static_registry() {
 } // namespace
 
 support::buffer open(sl::io::span<const char> data) {
-    wilton_Serial* ser;
+    wilton_Serial* ser = nullptr;
     char* err = wilton_Serial_open(std::addressof(ser), data.data(), static_cast<int>(data.size()));
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
     int64_t handle = static_registry().put(ser);
