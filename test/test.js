@@ -1,6 +1,6 @@
 
 // valgrind --track-fds=yes --leak-check=yes --show-reachable=yes --track-origins=yes --suppressions=../deps/cmake/resources/valgrind/popt_poptGetNextOpt.supp --suppressions=../deps/cmake/resources/valgrind/wilton_dyload.supp --suppressions=../deps/cmake/resources/valgrind/openssl_malloc.supp ./bin/wilton_cli ../modules/wilton_serial/test/test.js -m ../js
-define(["wilton/hex", "wilton/serial/Serial"], function(hex, Serial) {
+define(["wilton/hex", "wilton/Serial"], function(hex, Serial) {
     return {
         main: function() {
 
