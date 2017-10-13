@@ -174,7 +174,7 @@ private:
                 auto prev_len = res.length();
                 res.resize(length);
                 auto rlen = length - prev_len;
-                auto read = ::read(this->fd, std::addressof(res.front()), rlen);
+                auto read = ::read(this->fd, std::addressof(res.front()) + prev_len, rlen);
                 if (-1 == read) {
                     throw support::exception(TRACEMSG(""
                         "Serial 'read' error, len: [" + sl::support::to_string(rlen) + "],"
