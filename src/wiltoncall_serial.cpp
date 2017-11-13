@@ -6,6 +6,7 @@
  */
 
 
+#include <memory>
 #include <string>
 
 #include "staticlib/config.hpp"
@@ -28,11 +29,11 @@ namespace serial {
 
 namespace { //anonymous
 
-support::handle_registry<wilton_Serial>& static_registry() {
-    static support::handle_registry<wilton_Serial> registry {
+std::shared_ptr<support::handle_registry<wilton_Serial>> shared_registry() {
+    static auto registry = std::make_shared<support::handle_registry<wilton_Serial>>(
         [] (wilton_Serial* conn) STATICLIB_NOEXCEPT {
             wilton_Serial_close(conn);
-        }};
+        });
     return registry;
 }
 
@@ -42,7 +43,8 @@ support::buffer open(sl::io::span<const char> data) {
     wilton_Serial* ser = nullptr;
     char* err = wilton_Serial_open(std::addressof(ser), data.data(), static_cast<int>(data.size()));
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
-    int64_t handle = static_registry().put(ser);
+    auto reg = shared_registry();
+    int64_t handle = reg->put(ser);
     return support::make_json_buffer({
         { "serialHandle", handle}
     });
@@ -63,13 +65,14 @@ support::buffer close(sl::io::span<const char> data) {
     if (-1 == handle) throw support::exception(TRACEMSG(
             "Required parameter 'serialHandle' not specified"));
     // get handle
-    wilton_Serial* ser = static_registry().remove(handle);
+    auto reg = shared_registry();
+    wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
     // call wilton
     char* err = wilton_Serial_close(ser);
     if (nullptr != err) {
-        static_registry().put(ser);
+        reg->put(ser);
         support::throw_wilton_error(err, TRACEMSG(err));
     }
     return support::make_empty_buffer();
@@ -95,7 +98,8 @@ support::buffer read(sl::io::span<const char> data) {
     if (-1 == len) throw support::exception(TRACEMSG(
             "Required parameter 'length' not specified"));
     // get handle
-    wilton_Serial* ser = static_registry().remove(handle);
+    auto reg = shared_registry();
+    wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
     // call wilton
@@ -103,7 +107,7 @@ support::buffer read(sl::io::span<const char> data) {
     int out_len = 0;
     char* err = wilton_Serial_read(ser, static_cast<int>(len),
             std::addressof(out), std::addressof(out_len));
-    static_registry().put(ser);
+    reg->put(ser);
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
     return support::wrap_wilton_buffer(out, out_len);
 }
@@ -123,14 +127,15 @@ support::buffer readline(sl::io::span<const char> data) {
     if (-1 == handle) throw support::exception(TRACEMSG(
             "Required parameter 'serialHandle' not specified"));
     // get handle
-    wilton_Serial* ser = static_registry().remove(handle);
+    auto reg = shared_registry();
+    wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
     // call wilton
     char* out = nullptr;
     int out_len = 0;
     char* err = wilton_Serial_readline(ser, std::addressof(out), std::addressof(out_len));
-    static_registry().put(ser);
+    reg->put(ser);
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
     return support::wrap_wilton_buffer(out, out_len);
 }
@@ -156,14 +161,15 @@ support::buffer write(sl::io::span<const char> data) {
             "Required parameter 'dataHex' not specified"));
     std::string sdata = sl::crypto::from_hex(rdatahex.get());
     // get handle
-    wilton_Serial* ser = static_registry().remove(handle);
+    auto reg = shared_registry();
+    wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
     // call wilton
     int written_out = 0;
     char* err = wilton_Serial_write(ser, sdata.c_str(), 
             static_cast<int> (sdata.length()), std::addressof(written_out));
-    static_registry().put(ser);
+    reg->put(ser);
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
     return support::make_json_buffer({
         { "bytesWritten", written_out }
