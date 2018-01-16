@@ -237,6 +237,13 @@ private:
         case 9600: rate = B9600; break;
         case 19200: rate = B19200; break;
         case 38400: rate = B38400; break;
+        case 57600: rate = B57600; break;
+        case 115200: rate = B115200; break;
+        case 230400: rate = B230400; break;
+        case 460800: rate = B460800; break;
+        case 500000: rate = B500000; break;
+        case 576000: rate = B576000; break;
+        case 921600: rate = B921600; break;
         default: throw support::exception(TRACEMSG(
                 "Invalid 'baudRate' specified: [" + sl::support::to_string(conf.baud_rate) + "]"));
         }
