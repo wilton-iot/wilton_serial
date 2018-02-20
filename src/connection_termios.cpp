@@ -18,6 +18,7 @@
 #include "staticlib/crypto.hpp"
 #include "staticlib/support.hpp"
 #include "staticlib/pimpl/forward_macros.hpp"
+#include "staticlib/utils.hpp"
 
 namespace wilton {
 namespace serial {
@@ -57,13 +58,13 @@ public:
     };
     
     std::string read(connection&, uint32_t length) {
-        uint64_t start = current_time_millis();
+        uint64_t start = sl::utils::current_time_millis_steady();
         auto res = read_some(start, length, conf.timeout_millis);
         return sl::crypto::to_hex(res);
     }
 
     std::string read_line(connection&) {
-        uint64_t start = current_time_millis();
+        uint64_t start = sl::utils::current_time_millis_steady();
         uint64_t finish = start + conf.timeout_millis;
         uint64_t cur = start;
         std::string res;
@@ -74,7 +75,7 @@ public:
                 break;
             }
             res.push_back(ch.at(0));
-            cur = current_time_millis();
+            cur = sl::utils::current_time_millis_steady();
             if (cur >= finish) {
                 break;
             }
@@ -86,7 +87,7 @@ public:
     }
 
     uint32_t write(connection&, sl::io::span<const char> data) {
-        uint64_t start = current_time_millis();
+        uint64_t start = sl::utils::current_time_millis_steady();
         uint64_t finish = start + conf.timeout_millis;
         uint64_t cur = start;
         size_t written = 0;
@@ -111,7 +112,7 @@ public:
                     break;
                 }
             }
-            cur = current_time_millis();
+            cur = sl::utils::current_time_millis_steady();
             if (cur >= finish) {
                 break;
             }
@@ -124,12 +125,6 @@ private:
         if (-1 != fd) {
             ::close(fd);
         }
-    }
-
-    static uint64_t current_time_millis() {
-        auto now = std::chrono::steady_clock::now().time_since_epoch();
-        auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now);
-        return millis.count();
     }
 
     static void check_poll_err(struct pollfd& pfd, int err, const std::string& res, int timeout) {
@@ -186,7 +181,7 @@ private:
                 }
             }
             
-            cur = current_time_millis();
+            cur = sl::utils::current_time_millis_steady();
             if (cur >= finish) {
                 break;
             }
