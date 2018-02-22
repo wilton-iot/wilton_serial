@@ -41,7 +41,7 @@ std::shared_ptr<support::handle_registry<wilton_Serial>> shared_registry() {
 
 support::buffer open(sl::io::span<const char> data) {
     wilton_Serial* ser = nullptr;
-    char* err = wilton_Serial_open(std::addressof(ser), data.data(), static_cast<int>(data.size()));
+    char* err = wilton_Serial_open(std::addressof(ser), data.data(), data.size_int());
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
     auto reg = shared_registry();
     int64_t handle = reg->put(ser);
@@ -75,7 +75,7 @@ support::buffer close(sl::io::span<const char> data) {
         reg->put(ser);
         support::throw_wilton_error(err, TRACEMSG(err));
     }
-    return support::make_empty_buffer();
+    return support::make_null_buffer();
 }
 
 support::buffer read(sl::io::span<const char> data) {

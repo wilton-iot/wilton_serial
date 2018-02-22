@@ -11,7 +11,7 @@
 
 #include "staticlib/config.hpp"
 
-#include "wilton/support/alloc_copy.hpp"
+#include "wilton/support/alloc.hpp"
 #include "wilton/support/buffer.hpp"
 
 #include "connection.hpp"
@@ -63,8 +63,8 @@ char* wilton_Serial_read(
     try {
         std::string res = ser->impl().read(static_cast<uint32_t>(len));
         auto buf = wilton::support::make_string_buffer(res);
-        *data_out = buf.value().data();
-        *data_len_out = static_cast<int>(buf.value().size());
+        *data_out = buf.data();
+        *data_len_out = buf.size_int();
         return nullptr;
     } catch (const std::exception& e) {
         return wilton::support::alloc_copy(TRACEMSG(e.what() + "\nException raised"));
@@ -81,8 +81,8 @@ char* wilton_Serial_readline(
     try {
         std::string res = ser->impl().read_line();
         auto buf = wilton::support::make_string_buffer(res);
-        *data_out = buf.value().data();
-        *data_len_out = static_cast<int>(buf.value().size());
+        *data_out = buf.data();
+        *data_len_out = buf.size_int();
         return nullptr;
     } catch (const std::exception& e) {
         return wilton::support::alloc_copy(TRACEMSG(e.what() + "\nException raised"));
