@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017, alex at staticlibs.net
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* 
  * File:   connection_termios.cpp
  * Author: alex
@@ -15,7 +31,6 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "staticlib/crypto.hpp"
 #include "staticlib/support.hpp"
 #include "staticlib/pimpl/forward_macros.hpp"
 #include "staticlib/utils.hpp"
@@ -59,8 +74,7 @@ public:
     
     std::string read(connection&, uint32_t length) {
         uint64_t start = sl::utils::current_time_millis_steady();
-        auto res = read_some(start, length, conf.timeout_millis);
-        return sl::crypto::to_hex(res);
+        return read_some(start, length, conf.timeout_millis);
     }
 
     std::string read_line(connection&) {
@@ -83,7 +97,7 @@ public:
         if (res.length() > 0 && '\r' == res.back()) {
             res.pop_back();
         }
-        return sl::crypto::to_hex(res);
+        return res;
     }
 
     uint32_t write(connection&, sl::io::span<const char> data) {

@@ -1,3 +1,19 @@
+/*
+ * Copyright 2017, alex at staticlibs.net
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 /* 
  * File:   wiltoncall_serial.cpp
  * Author: alex
@@ -10,7 +26,6 @@
 #include <string>
 
 #include "staticlib/config.hpp"
-#include "staticlib/crypto.hpp"
 #include "staticlib/io.hpp"
 #include "staticlib/json.hpp"
 #include "staticlib/support.hpp"
@@ -108,8 +123,15 @@ support::buffer read(sl::io::span<const char> data) {
     char* err = wilton_Serial_read(ser, static_cast<int>(len),
             std::addressof(out), std::addressof(out_len));
     reg->put(ser);
-    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
-    return support::wrap_wilton_buffer(out, out_len);
+    if (nullptr != err) {
+        support::throw_wilton_error(err, TRACEMSG(err));
+    }
+    if (nullptr == out) {
+        return support::make_null_buffer();
+    }
+    // return hex
+    auto src = sl::io::array_source(out, out_len);
+    return support::make_hex_buffer(src);
 }
 
 support::buffer readline(sl::io::span<const char> data) {
@@ -136,8 +158,15 @@ support::buffer readline(sl::io::span<const char> data) {
     int out_len = 0;
     char* err = wilton_Serial_readline(ser, std::addressof(out), std::addressof(out_len));
     reg->put(ser);
-    if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
-    return support::wrap_wilton_buffer(out, out_len);
+    if (nullptr != err) {
+        support::throw_wilton_error(err, TRACEMSG(err));
+    }
+    if (nullptr == out) {
+        return support::make_null_buffer();
+    }
+    // return hex
+    auto src = sl::io::array_source(out, out_len);
+    return support::make_hex_buffer(src);
 }
 
 support::buffer write(sl::io::span<const char> data) {
@@ -159,7 +188,8 @@ support::buffer write(sl::io::span<const char> data) {
             "Required parameter 'serialHandle' not specified"));
     if (rdatahex.get().empty()) throw support::exception(TRACEMSG(
             "Required parameter 'dataHex' not specified"));
-    std::string sdata = sl::crypto::from_hex(rdatahex.get());
+    // decode hex
+    auto sdata = sl::io::string_from_hex(rdatahex.get());
     // get handle
     auto reg = shared_registry();
     wilton_Serial* ser = reg->remove(handle);
