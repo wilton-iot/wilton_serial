@@ -44,6 +44,7 @@ namespace serial {
 
 namespace { //anonymous
 
+// initialized from wilton_module_init
 std::shared_ptr<support::handle_registry<wilton_Serial>> shared_registry() {
     static auto registry = std::make_shared<support::handle_registry<wilton_Serial>>(
         [] (wilton_Serial* conn) STATICLIB_NOEXCEPT {
@@ -211,6 +212,7 @@ support::buffer write(sl::io::span<const char> data) {
 
 extern "C" char* wilton_module_init() {
     try {
+        wilton::serial::shared_registry();
         wilton::support::register_wiltoncall("serial_open", wilton::serial::open);
         wilton::support::register_wiltoncall("serial_close", wilton::serial::close);
         wilton::support::register_wiltoncall("serial_read", wilton::serial::read);
