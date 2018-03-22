@@ -75,8 +75,8 @@ public:
         if (nullptr != handle) {
             ::CloseHandle(handle);
         }
-    };
-    
+    }
+
     std::string read(connection&, uint32_t length) {
         uint64_t start = sl::utils::current_time_millis_steady();
         return read_some(start, length, conf.timeout_millis);
@@ -409,7 +409,7 @@ private:
                 "Serial 'SetCommState' error, port: [" + this->conf.port + "],"
                 " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
     }
-    
+
     void flush_input_buffer() {
         auto err = ::PurgeComm(this->handle,
                 PURGE_TXCLEAR | PURGE_TXABORT | PURGE_RXCLEAR | PURGE_RXABORT);

@@ -42,7 +42,7 @@ class connection::impl : public staticlib::pimpl::object::impl {
     serial_config conf;
 
     int fd = -1;
-    
+
 public:
     impl(serial_config&& conf) :
     conf(std::move(conf)) {
