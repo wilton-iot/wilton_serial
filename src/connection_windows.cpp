@@ -24,8 +24,7 @@
 #include "connection.hpp"
 
 #include <array>
-#include <chrono>
-#include <utility>
+#include <tuple>
 
 #ifndef UNICODE
 #define UNICODE
@@ -111,8 +110,9 @@ public:
         uint64_t cur = start;
         size_t written = 0;
         for(;;) {
-            // (err, bytes_written)
-            auto state = std::pair<DWORD, DWORD>();
+            // (err, bytes_written, flag)
+            bool completion_called_flag = false;
+            std::tuple<DWORD, DWORD, bool*> state = std::make_tuple(0, 0, std::addressof(completion_called_flag));
             OVERLAPPED overlapped;
             std::memset(std::addressof(overlapped), '\0', sizeof (overlapped)); 
             overlapped.hEvent = static_cast<void*>(std::addressof(state));
@@ -120,9 +120,10 @@ public:
             // completion routine
             auto completion = static_cast<LPOVERLAPPED_COMPLETION_ROUTINE> ([](
                     DWORD err, DWORD bytes_written, LPOVERLAPPED overlapped_ptr) {
-                auto state_ptr = static_cast<std::pair<DWORD, DWORD>*>(overlapped_ptr->hEvent);
-                state_ptr->first = err;
-                state_ptr->second = bytes_written;
+                auto state_ptr = static_cast<std::tuple<DWORD, DWORD, bool*>*>(overlapped_ptr->hEvent);
+                std::get<0>(*state_ptr) = err;
+                std::get<1>(*state_ptr) = bytes_written;
+                *std::get<2>(*state_ptr) = true;
             });
 
             // prepare write
@@ -145,25 +146,27 @@ public:
                     " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
 
             auto err_wait_written = ::SleepEx(wtm, TRUE);
-            if (WAIT_IO_COMPLETION != err_wait_written) {
+            if (WAIT_IO_COMPLETION != err_wait_written || !completion_called_flag) {
                 // cancel pending operation
                 auto err_cancel = ::CancelIo(this->handle);
                 if (0 == err_cancel) throw support::exception(TRACEMSG(
                         "Serial 'CancelIo' error, port: [" + this->conf.port + "]," +
                         " bytes left to write: [" + sl::support::to_string(msg.length()) + "]" +
                         " bytes written: [" + sl::support::to_string(written) + "]" +
+                        " completion called: [" + sl::support::to_string(completion_called_flag) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
                 // wait for operation to be canceled
                 auto err_wait_canceled = ::SleepEx(INFINITE, TRUE);
-                if (WAIT_IO_COMPLETION != err_wait_canceled) throw support::exception(TRACEMSG(
+                if (WAIT_IO_COMPLETION != err_wait_canceled || !completion_called_flag) throw support::exception(TRACEMSG(
                         "Serial 'SleepEx' error, port: [" + this->conf.port + "]," +
                         " bytes left to write: [" + sl::support::to_string(msg.length()) + "]" +
                         " bytes written: [" + sl::support::to_string(written) + "]" +
+                        " completion called: [" + sl::support::to_string(completion_called_flag) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
             }
 
             // at this point completion routine must be called
-            if (ERROR_SUCCESS == state.first) {
+            if (ERROR_SUCCESS == std::get<0>(state)) {
                 // check for warnings
                 DWORD written_checked = 0;
                 overlapped.hEvent = 0;
@@ -176,19 +179,19 @@ public:
                         "Serial 'GetOverlappedResult' error, port: [" + this->conf.port + "]," +
                         " bytes left to write: [" + sl::support::to_string(msg.length()) + "]" +
                         " bytes written: [" + sl::support::to_string(written) + "]" +
-                        " bytes completion: [" + sl::support::to_string(state.second) + "]" +
+                        " bytes completion: [" + sl::support::to_string(std::get<1>(state)) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
 
-                written += static_cast<size_t>(written_checked > state.second ? written_checked : state.second);
+                written += static_cast<size_t>(written_checked > std::get<1>(state) ? written_checked : std::get<1>(state));
                 // check everything written
                 if (written >= data.size()) {
                     break;
                 } 
-            } else if (ERROR_OPERATION_ABORTED != state.first) throw support::exception(TRACEMSG(
+            } else if (ERROR_OPERATION_ABORTED != std::get<0>(state)) throw support::exception(TRACEMSG(
                     "Serial 'FileIOCompletionRoutine' error, port: [" + this->conf.port + "]," +
                     " bytes left to write: [" + sl::support::to_string(msg.length()) + "]" +
                     " bytes written: [" + sl::support::to_string(written) + "]" +
-                    " error: [" + sl::utils::errcode_to_string(state.first) + "]"));
+                    " error: [" + sl::utils::errcode_to_string(std::get<0>(state)) + "]"));
 
             // check timeout
             cur = sl::utils::current_time_millis_steady();
@@ -206,8 +209,9 @@ private:
         uint64_t cur = start;
         std::string res;
         for (;;) {
-            // (err, bytes_read)
-            auto state = std::pair<DWORD, DWORD>();
+            // (err, bytes_read, flag)
+            bool completion_called_flag = false;
+            std::tuple<DWORD, DWORD, bool*> state = std::make_tuple(0, 0, std::addressof(completion_called_flag));
             OVERLAPPED overlapped;
             std::memset(std::addressof(overlapped), '\0', sizeof (overlapped)); 
             overlapped.hEvent = static_cast<void*>(std::addressof(state));
@@ -215,9 +219,10 @@ private:
             // completion routine
             auto completion = static_cast<LPOVERLAPPED_COMPLETION_ROUTINE> ([](
                     DWORD err, DWORD bytes_read, LPOVERLAPPED overlapped_ptr) {
-                auto state_ptr = static_cast<std::pair<DWORD, DWORD>*>(overlapped_ptr->hEvent);
-                state_ptr->first = err;
-                state_ptr->second = bytes_read;
+                auto state_ptr = static_cast<std::tuple<DWORD, DWORD, bool*>*>(overlapped_ptr->hEvent);
+                std::get<0>(*state_ptr) = err;
+                std::get<1>(*state_ptr) = bytes_read;
+                *std::get<2>(*state_ptr) = true;
             });
 
             // find out how much data is buffered
@@ -258,7 +263,7 @@ private:
                     " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
 
             auto err_wait_read = ::SleepEx(rtm, TRUE);
-            if (WAIT_IO_COMPLETION != err_wait_read) {
+            if (WAIT_IO_COMPLETION != err_wait_read || !completion_called_flag) {
                 // cancel pending operation
                 auto err_cancel = ::CancelIo(this->handle);
                 if (0 == err_cancel) throw support::exception(TRACEMSG(
@@ -266,19 +271,21 @@ private:
                         " bytes to read: [" + sl::support::to_string(length) + "]" +
                         " bytes read: [" + sl::support::to_string(res.length()) + "]" +
                         " bytes avail: [" + sl::support::to_string(avail) + "]" +
+                        " completion called: [" + sl::support::to_string(completion_called_flag) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
                 // wait for operation to be canceled
                 auto err_wait_canceled = ::SleepEx(INFINITE, TRUE);
-                if (WAIT_IO_COMPLETION != err_wait_canceled) throw support::exception(TRACEMSG(
+                if (WAIT_IO_COMPLETION != err_wait_canceled || !completion_called_flag) throw support::exception(TRACEMSG(
                         "Serial 'SleepEx' error, port: [" + this->conf.port + "]," +
                         " bytes to read: [" + sl::support::to_string(length) + "]" +
                         " bytes read: [" + sl::support::to_string(res.length()) + "]" +
                         " bytes avail: [" + sl::support::to_string(avail) + "]" +
+                        " completion called: [" + sl::support::to_string(completion_called_flag) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
             }
 
             // at this point completion routine must be called
-            if (ERROR_SUCCESS == state.first) {
+            if (ERROR_SUCCESS == std::get<0>(state)) {
                 // check for warnings
                 DWORD read_checked = 0;
                 overlapped.hEvent = 0;
@@ -292,22 +299,22 @@ private:
                         " bytes to read: [" + sl::support::to_string(length) + "]" +
                         " bytes read: [" + sl::support::to_string(res.length()) + "]" +
                         " bytes avail: [" + sl::support::to_string(avail) + "]" +
-                        " bytes completion: [" + sl::support::to_string(state.second) + "]" +
+                        " bytes completion: [" + sl::support::to_string(std::get<1>(state)) + "]" +
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
                 
-                auto read = static_cast<size_t>(read_checked > state.second ? read_checked : state.second);
+                auto read = static_cast<size_t>(read_checked > std::get<1>(state) ? read_checked : std::get<1>(state));
                 res.resize(prev_len + read);
                 if (res.length() >= length) {
                     break;
                 }
-            } else if (ERROR_OPERATION_ABORTED == state.first) {
+            } else if (ERROR_OPERATION_ABORTED == std::get<0>(state)) {
                 res.resize(prev_len);
             } else throw support::exception(TRACEMSG(
                     "Serial 'FileIOCompletionRoutine' error, port: [" + this->conf.port + "]," +
                     " bytes to read: [" + sl::support::to_string(length) + "]" +
                     " bytes read: [" + sl::support::to_string(res.length()) + "]" +
                     " bytes avail: [" + sl::support::to_string(avail) + "]" +
-                    " error: [" + sl::utils::errcode_to_string(state.first) + "]"));
+                    " error: [" + sl::utils::errcode_to_string(std::get<0>(state)) + "]"));
 
             // check timeout
             cur = sl::utils::current_time_millis_steady();
