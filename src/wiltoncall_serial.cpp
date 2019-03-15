@@ -35,9 +35,9 @@
 #include "wilton/wiltoncall.h"
 #include "wilton/wilton_serial.h"
 
-#include "wilton/support/handle_registry.hpp"
 #include "wilton/support/buffer.hpp"
 #include "wilton/support/registrar.hpp"
+#include "wilton/support/unique_handle_registry.hpp"
 
 namespace wilton {
 namespace serial {
@@ -45,11 +45,9 @@ namespace serial {
 namespace { //anonymous
 
 // initialized from wilton_module_init
-std::shared_ptr<support::handle_registry<wilton_Serial>> shared_registry() {
-    static auto registry = std::make_shared<support::handle_registry<wilton_Serial>>(
-        [] (wilton_Serial* conn) STATICLIB_NOEXCEPT {
-            wilton_Serial_close(conn);
-        });
+std::shared_ptr<support::unique_handle_registry<wilton_Serial>> serial_registry() {
+    static auto registry = std::make_shared<
+            support::unique_handle_registry<wilton_Serial>>(wilton_Serial_close);
     return registry;
 }
 
@@ -59,7 +57,7 @@ support::buffer open(sl::io::span<const char> data) {
     wilton_Serial* ser = nullptr;
     char* err = wilton_Serial_open(std::addressof(ser), data.data(), data.size_int());
     if (nullptr != err) support::throw_wilton_error(err, TRACEMSG(err));
-    auto reg = shared_registry();
+    auto reg = serial_registry();
     int64_t handle = reg->put(ser);
     return support::make_json_buffer({
         { "serialHandle", handle}
@@ -81,7 +79,7 @@ support::buffer close(sl::io::span<const char> data) {
     if (-1 == handle) throw support::exception(TRACEMSG(
             "Required parameter 'serialHandle' not specified"));
     // get handle
-    auto reg = shared_registry();
+    auto reg = serial_registry();
     wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
@@ -114,7 +112,7 @@ support::buffer read(sl::io::span<const char> data) {
     if (-1 == len) throw support::exception(TRACEMSG(
             "Required parameter 'length' not specified"));
     // get handle
-    auto reg = shared_registry();
+    auto reg = serial_registry();
     wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
@@ -150,7 +148,7 @@ support::buffer readline(sl::io::span<const char> data) {
     if (-1 == handle) throw support::exception(TRACEMSG(
             "Required parameter 'serialHandle' not specified"));
     // get handle
-    auto reg = shared_registry();
+    auto reg = serial_registry();
     wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
@@ -192,7 +190,7 @@ support::buffer write(sl::io::span<const char> data) {
     // decode hex
     auto sdata = sl::io::string_from_hex(rdatahex.get());
     // get handle
-    auto reg = shared_registry();
+    auto reg = serial_registry();
     wilton_Serial* ser = reg->remove(handle);
     if (nullptr == ser) throw support::exception(TRACEMSG(
             "Invalid 'serialHandle' parameter specified"));
@@ -212,7 +210,7 @@ support::buffer write(sl::io::span<const char> data) {
 
 extern "C" char* wilton_module_init() {
     try {
-        wilton::serial::shared_registry();
+        wilton::serial::serial_registry();
         wilton::support::register_wiltoncall("serial_open", wilton::serial::open);
         wilton::support::register_wiltoncall("serial_close", wilton::serial::close);
         wilton::support::register_wiltoncall("serial_read", wilton::serial::read);
