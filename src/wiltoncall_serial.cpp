@@ -46,8 +46,10 @@ namespace { //anonymous
 
 // initialized from wilton_module_init
 std::shared_ptr<support::unique_handle_registry<wilton_Serial>> serial_registry() {
-    static auto registry = std::make_shared<
-            support::unique_handle_registry<wilton_Serial>>(wilton_Serial_close);
+    static auto registry = std::make_shared<support::unique_handle_registry<wilton_Serial>>(
+            [](wilton_Serial* ser) STATICLIB_NOEXCEPT {
+                wilton_Serial_close(ser);
+            });
     return registry;
 }
 
