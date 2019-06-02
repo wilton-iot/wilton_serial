@@ -143,6 +143,9 @@ private:
 
     static void check_poll_err(struct pollfd& pfd, int err, const std::string& res, int timeout) {
         if (err < 0) {
+            if (EINTR == errno) {
+                return; // Interrupted system call
+            }
             throw support::exception(TRACEMSG(
                     "Serial 'poll' error, timeout: [" + sl::support::to_string(timeout) + "],"
                     " current res: [" + res + "]" +
@@ -179,7 +182,7 @@ private:
             int ptm = static_cast<int> (timeout_millis - passed);
             auto err = ::poll(std::addressof(pfd), 1, ptm);
             check_poll_err(pfd, err, res, ptm);
-            if (pfd.revents & POLLIN) {
+            if (err > 0 && (pfd.revents & POLLIN)) {
                 auto prev_len = res.length();
                 res.resize(length);
                 auto rlen = length - prev_len;
