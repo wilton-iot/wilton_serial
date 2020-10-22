@@ -197,8 +197,8 @@ private:
         uint64_t cur = start;
         std::string res;
         for (;;) {
-            // (err, bytes_read, flag)
             bool completion_called_flag = false;
+            // (err, bytes_read, flag)
             std::tuple<DWORD, DWORD, bool*> state = std::make_tuple(0, 0, std::addressof(completion_called_flag));
             OVERLAPPED overlapped;
             std::memset(std::addressof(overlapped), '\0', sizeof (overlapped)); 
@@ -229,11 +229,13 @@ private:
             uint32_t passed = static_cast<uint32_t> (cur - start);
             int rtm = static_cast<int> (timeout_millis - passed);
             auto prev_len = res.length();
-            res.resize(length);
-            auto rlen = length - prev_len;
-            if (avail > 0 && avail < rlen) {
-                rlen = avail;
+            // default to 1 byte, if no data is available
+            size_t rlen = avail > 0 ? avail : 1;
+            auto max_rlen = length - prev_len;
+            if (rlen > max_rlen) {
+                rlen = max_rlen;
             }
+            res.resize(prev_len + rlen);
 
             // start read
             auto err_read = ::ReadFileEx(
@@ -291,7 +293,16 @@ private:
                         " error: [" + sl::utils::errcode_to_string(::GetLastError()) + "]"));
                 
                 auto read = static_cast<size_t>(read_checked > std::get<1>(state) ? read_checked : std::get<1>(state));
-                res.resize(prev_len + read);
+                if (read != rlen) {
+                    if (read < rlen) {
+                        res.resize(prev_len + read);
+                    } else throw support::exception(TRACEMSG(
+                        "Serial 'GetOverlappedResult' read_checked error, port: [" + this->conf.port + "]," +
+                        " bytes rlen: [" + sl::support::to_string(length) + "]" +
+                        " bytes read_checked: [" + sl::support::to_string(read_checked) + "]" +
+                        " bytes avail: [" + sl::support::to_string(avail) + "]" +
+                        " bytes completion: [" + sl::support::to_string(std::get<1>(state)) + "]"));
+                }
                 if (res.length() >= length) {
                     break;
                 }
